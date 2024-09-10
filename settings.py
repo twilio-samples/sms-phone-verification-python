@@ -1,4 +1,6 @@
 """
+settings.py
+
 For the purposes of this tutorial, we will be hardcoding a list of accounts that are allowed to enter the website, along with their phone numbers. In a production setting, you would have to use your chosen database instead.
 
 Keep in mind that if you were to use your own database, you would have to avoid storing passwords as plaintext. There are plenty of libraries that help developers manage passwords such as Flask Security.
