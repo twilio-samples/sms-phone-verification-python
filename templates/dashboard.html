@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Twilio Verify{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1 class="card-title">Welcome, {{ user.username }}!</h1>
+
+    <div class="success-box">
+        <p class="success-box-title">Phone Verified</p>
+        <p class="success-box-text">Your phone number has been successfully verified.</p>
+    </div>
+
+    <div class="info-box">
+        <p class="info-box-title">Account Details</p>
+        <p>Username: {{ user.username }}</p>
+        <p>Phone: {{ user.phone_number }}</p>
+        <p>Status: Verified</p>
+    </div>
+</div>
+{% endblock %}

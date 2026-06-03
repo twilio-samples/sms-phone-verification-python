@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Twilio Verify{% endblock %}</title>
+    <link rel="stylesheet" href="https://assets.twilio.com/public_assets/paste-fonts/1.5.2/fonts.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/paste.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.0.0/build/css/intlTelInput.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <a href="{{ url_for('index') }}" class="logo">Twilio Verify</a>
+            <nav class="nav">
+                {% if user %}
+                    <span class="nav-text">{{ user.username }}</span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-secondary btn-small">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-secondary btn-small">Login</a>
+                    <a href="{{ url_for('register') }}" class="btn btn-primary btn-small">Register</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>Powered by Twilio Verify API</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.0.0/build/js/intlTelInput.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% set user = None %}
+
+{% block title %}Register | Twilio Verify{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1 class="card-title">Create Account</h1>
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="username" class="form-label required">Username</label>
+            <input type="text" id="username" name="username" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password" class="form-label required">Password</label>
+            <input type="password" id="password" name="password" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+            <label for="confirm_password" class="form-label required">Confirm Password</label>
+            <input type="password" id="confirm_password" name="confirm_password" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+            <label for="phone_number" class="form-label required">Phone Number</label>
+            <input type="tel" id="phone_number" name="phone_number" class="form-input" required>
+            <p class="form-help">Select your country and enter your phone number</p>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full">Register</button>
+    </form>
+
+    <p class="text-center mt-60">
+        Already have an account? <a href="{{ url_for('login') }}" class="text-link">Sign in</a>
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const input = document.querySelector("#phone_number");
+    const iti = intlTelInput(input, {
+        initialCountry: "us",
+        preferredCountries: ["us", "gb", "ca", "au"],
+        separateDialCode: true,
+        utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.0.0/build/js/utils.js"
+    });
+
+    input.form.addEventListener('submit', function() {
+        input.value = iti.getNumber();
+    });
+</script>
+{% endblock %}
