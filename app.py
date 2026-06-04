@@ -1,110 +1,210 @@
-"""
-app.py
-
-Contents:
-1. Configure the Flask application
-2. Handle the users login information
-3. Generate a verification code with Twilio Verify
-4. Handle the verification tokens
-
-The code in this file serves as the backend client to process user authentication to your website.
-"""
-
 import os
+import sqlite3
+from functools import wraps
+
 from dotenv import load_dotenv
+from flask import Flask, request, redirect, url_for, render_template, session, g, flash
+import bcrypt
 from twilio.rest import Client
-from flask import Flask, request, render_template, redirect, session, url_for
-from twilio.rest import Client
-from twilio.base.exceptions import TwilioRestException
-
-"""
-1. Configure the Flask application
-
-The Flask app will also have a secret_key for some level of encryption. Any random string can replace 
-"secretkey". This is also required in our project since we need to store the users' account information and 
-pass it along to other routes on the site using Flask's session.
-
-Retrieve the environment variables from the .env file, as well as the list of known participants that was 
-imported from the settings.py file. 
-"""
 
 load_dotenv()
+
+required_vars = ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'VERIFY_SERVICE_SID']
+missing = [v for v in required_vars if not os.environ.get(v)]
+if missing:
+    print('\n❌ Missing required environment variables:')
+    for v in missing:
+        print(f'   - {v}')
+    print('\nCopy .env.example to .env and fill in your Twilio credentials.\n')
+    exit(1)
+
 app = Flask(__name__)
-app.secret_key = 'secretkey'
-app.config.from_object('settings')
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
 
-TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN= os.environ.get('TWILIO_AUTH_TOKEN')
-VERIFY_SERVICE_SID= os.environ.get('VERIFY_SERVICE_SID')
+DATABASE = os.path.join(os.path.dirname(__file__), 'database.sqlite3')
 
-client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+twilio_client = Client(
+    os.environ['TWILIO_ACCOUNT_SID'],
+    os.environ['TWILIO_AUTH_TOKEN']
+)
+VERIFY_SERVICE_SID = os.environ['VERIFY_SERVICE_SID']
 
-KNOWN_PARTICIPANTS = app.config['KNOWN_PARTICIPANTS']
 
-"""
-2. Handle the users login information
-A POST request is made to allow the participant's username to be stored in the Flask session. If the username is 
-in the database, in this case the KNOWN_PARTICIPANTS dictionary, then the username is stored in the current Flask 
-session and the verification token is sent to the corresponding phone number. The participant is redirected to 
-another route where they will see another form allowing them to submit the verification code.
+def get_db():
+    if 'db' not in g:
+        g.db = sqlite3.connect(DATABASE)
+        g.db.row_factory = sqlite3.Row
+    return g.db
 
-However, if the user enters an unknown username, then the page will be refreshed with an error message.
-"""
 
-@app.route('/', methods=['GET', 'POST'])
-def login():
-    error = None
+@app.teardown_appcontext
+def close_db(error):
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+
+
+def init_db():
+    db = get_db()
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            phone_number TEXT NOT NULL,
+            verified INTEGER DEFAULT 0
+        )
+    ''')
+    db.commit()
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def get_current_user():
+    if 'user_id' not in session:
+        return None
+    db = get_db()
+    user = db.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    return dict(user) if user else None
+
+
+@app.route('/')
+def index():
+    user = get_current_user()
+    if not user:
+        return redirect(url_for('login'))
+    if not user['verified']:
+        return redirect(url_for('verify'))
+    return render_template('dashboard.html', user=user)
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if get_current_user():
+        return redirect(url_for('index'))
+
     if request.method == 'POST':
-        username = request.form['username']
-        if username in KNOWN_PARTICIPANTS:
-            session['username'] = username
-            send_verification(username)
-            return redirect(url_for('generate_verification_code'))
-        error = "User not found. Please try again."
-        return render_template('index.html', error = error)
-    return render_template('index.html')
+        username = request.form.get('username')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        phone_number = request.form.get('phone_number')
 
-"""
-3. Generate a verification code with Twilio Verify
-The Twilio Client sends a verification token to the phone number associated with the username stored in the current 
-Flask session. The specified channel in this case is SMS but it can be sent as a call if you prefer.
-"""
+        error = None
 
-def send_verification(username):
-    phone = KNOWN_PARTICIPANTS.get(username)
-    client.verify \
-        .services(VERIFY_SERVICE_SID) \
-        .verifications \
-        .create(to=phone, channel='sms')
-
-"""
-4. Handle the verification tokens
-The POST request takes in the Flask session's phone number and the verification_code that the user typed into the 
-textbox and calls the Verify API to make sure they entered the one time passcode correctly.
-
-If the passcode was correct, the success page is rendered. Similar to the logic for the login page, if the 
-participant enters an incorrect verification code, the page will refresh and show an error message. 
-
-The page will also let the user enter the verification code again.
-"""
-
-@app.route('/verifyme', methods=['GET', 'POST'])
-def generate_verification_code():
-    username = session['username']
-    phone = KNOWN_PARTICIPANTS.get(username)
-    error = None
-    if request.method == 'POST':
-        verification_code = request.form['verificationcode']
-        if check_verification_token(phone, verification_code):
-            return render_template('success.html', username = username)
+        if not username or not password or not phone_number:
+            error = 'All fields are required.'
+        elif password != confirm_password:
+            error = 'Passwords do not match.'
         else:
-            error = "Invalid verification code. Please try again."
-            return render_template('verifypage.html', error = error)
-    return render_template('verifypage.html', username = username)
+            db = get_db()
+            existing = db.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone()
+            if existing:
+                error = 'Username already exists.'
 
-def check_verification_token(phone, token):
-    check = client.verify \
-        .services(VERIFY_SERVICE_SID) \
-        .verification_checks \
-        .create(to=phone, code=token)    
-    return check.status == 'approved'
+        if error:
+            flash(error, 'error')
+            return render_template('register.html')
+
+        hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+        db = get_db()
+        cursor = db.execute(
+            'INSERT INTO users (username, password, phone_number) VALUES (?, ?, ?)',
+            (username, hashed.decode('utf-8'), phone_number)
+        )
+        db.commit()
+
+        session['user_id'] = cursor.lastrowid
+        return redirect(url_for('verify'))
+
+    return render_template('register.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if get_current_user():
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        db = get_db()
+        user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+
+        if not user or not bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
+            flash('Invalid username or password.', 'error')
+            return render_template('login.html')
+
+        session['user_id'] = user['id']
+
+        if user['verified']:
+            return redirect(url_for('index'))
+        return redirect(url_for('verify'))
+
+    return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    session.pop('user_id', None)
+    return redirect(url_for('login'))
+
+
+@app.route('/verify', methods=['GET', 'POST'])
+@login_required
+def verify():
+    user = get_current_user()
+
+    if user['verified']:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'send':
+            try:
+                twilio_client.verify.v2.services(VERIFY_SERVICE_SID) \
+                    .verifications \
+                    .create(to=user['phone_number'], channel='sms')
+                flash('Verification code sent to your phone.', 'success')
+            except Exception as e:
+                flash(f'Error sending code: {str(e)}', 'error')
+
+        elif action == 'check':
+            code = request.form.get('code')
+            if not code:
+                flash('Please enter the verification code.', 'error')
+            else:
+                try:
+                    verification_check = twilio_client.verify.v2.services(VERIFY_SERVICE_SID) \
+                        .verification_checks \
+                        .create(to=user['phone_number'], code=code)
+
+                    if verification_check.status == 'approved':
+                        db = get_db()
+                        db.execute('UPDATE users SET verified = 1 WHERE id = ?', (user['id'],))
+                        db.commit()
+                        flash('Phone number verified successfully!', 'success')
+                        return redirect(url_for('index'))
+                    else:
+                        flash(f'Verification failed: {verification_check.status}', 'error')
+                except Exception as e:
+                    flash(f'Error verifying code: {str(e)}', 'error')
+
+    return render_template('verify.html', user=user)
+
+
+if __name__ == '__main__':
+    with app.app_context():
+        init_db()
+    port = int(os.environ.get('PORT', 5000))
+    print(f'Server running on http://localhost:{port}')
+    app.run(host='0.0.0.0', port=port, debug=True)

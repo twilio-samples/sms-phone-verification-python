@@ -1,59 +1,60 @@
-# sms-phone-verification-python
+# Build a User Registration System with SMS Phone Verification
 
-This is an application example implementing an SMS phone verification using
-Python 3.12.2 and [Flask](http://flask.pocoo.org/) web framework.
+A Flask application with user registration, authentication, and SMS phone verification using Twilio Verify. Users create an account, verify their phone number via OTP, and access protected content.
 
-Follow along [using this "How to Build a Basic Flask Website to Authenticate Users with Twilio Verify" tutorial](https://www.twilio.com/en-us/blog/basic-flask-python-twilio-verify).
+![Register](assets/register.png)
 
-## Local Development
+![Verify](assets/verify.png)
 
-This project is built using [Flask](http://flask.pocoo.org/) web framework.
+## Set up
 
-1. First clone this repository and `cd` into it.
+### Requirements
+
+- [Python](https://www.python.org/) 3.9+
+- [A Twilio Verify Service](https://console.twilio.com/?frameUrl=/console/verify/services)
+
+### Twilio Account Settings
+
+| Config Value | Description |
+| :----------- | :---------- |
+| TWILIO_ACCOUNT_SID | Your Twilio Account SID from the [Console](https://www.twilio.com/console) |
+| TWILIO_AUTH_TOKEN | Your Twilio Auth Token from the [Console](https://www.twilio.com/console) |
+| VERIFY_SERVICE_SID | Create a Verify Service [here](https://www.twilio.com/console/verify/services) |
+
+### Local development
+
+1. Clone this repository and `cd` into it.
 
    ```bash
-   $ git clone git@github.com:twilio-samples/sms-phone-verification-python.git
-   $ cd sms-phone-verification-python
-
+   git clone git@github.com:twilio-samples/sms-phone-verification-python.git
+   cd sms-phone-verification-python
    ```
 
-1. Create a new virtual environment.
+2. Create a virtual environment and install dependencies.
 
-    - If using vanilla [virtualenv](https://virtualenv.pypa.io/en/latest/):
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
 
-        ```bash
-        virtualenv venv
-        source venv/bin/activate
-        ```
+3. Set your environment variables.
 
-    - If using [virtualenvwrapper](https://virtualenvwrapper.readthedocs.org/en/latest/):
+   ```bash
+   cp .env.example .env
+   ```
 
-        ```bash
-        mkvirtualenv sms-phone-verification-python
-        ```
+   Edit `.env` with your Twilio credentials.
 
-1. Install the dependencies.
+4. Run the application.
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+   ```bash
+   python app.py
+   ```
 
+5. Open http://localhost:5000 to register an account and verify your phone number.
 
-1. Start the server.
+## Resources
 
-    ```bash
-    flask run
-    ```
-
-1. Expose the application to the wider Internet using [ngrok](https://ngrok.com/).
-
-    ```bash
-    ngrok http 5000 
-    ```
-
-
-## Meta
-
-* No warranty expressed or implied. Software is as is. Diggity.
-* [MIT License](http://www.opensource.org/licenses/mit-license.html)
-* Lovingly crafted by Twilio Developer Education.
+- [Twilio Verify API Documentation](https://www.twilio.com/docs/verify/api)
+- [SMS Phone Verification CodeExchange Page](https://www.twilio.com/code-exchange/sms-phone-verification)

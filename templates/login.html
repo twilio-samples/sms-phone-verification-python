@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% set user = None %}
+
+{% block title %}Sign In | Twilio Verify{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1 class="card-title">Sign In</h1>
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="username" class="form-label required">Username</label>
+            <input type="text" id="username" name="username" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password" class="form-label required">Password</label>
+            <input type="password" id="password" name="password" class="form-input" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+    </form>
+
+    <p class="text-center mt-60">
+        Don't have an account? <a href="{{ url_for('register') }}" class="text-link">Register</a>
+    </p>
+</div>
+{% endblock %}

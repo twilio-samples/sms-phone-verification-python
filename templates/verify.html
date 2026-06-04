@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Phone | Twilio Verify{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1 class="card-title">Verify Your Phone</h1>
+
+    <div class="callout">
+        <p class="callout-title">Phone Number</p>
+        <p class="callout-text">We'll send a verification code to {{ '*' * (user.phone_number|length - 4) }}{{ user.phone_number[-4:] }}</p>
+    </div>
+
+    <form method="POST" class="mb-60">
+        <input type="hidden" name="action" value="send">
+        <button type="submit" class="btn btn-secondary btn-full">Send Verification Code</button>
+    </form>
+
+    <form method="POST">
+        <input type="hidden" name="action" value="check">
+        <div class="form-group">
+            <label for="code" class="form-label required">Verification Code</label>
+            <input type="text" id="code" name="code" class="form-input" placeholder="123456" maxlength="6" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full">Verify Code</button>
+    </form>
+</div>
+{% endblock %}
